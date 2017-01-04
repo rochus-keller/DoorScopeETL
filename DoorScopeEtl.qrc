@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/DoorScopeEtl" >
+        <file>img_placeholder.png</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,1003 @@
+// User Function
+
+
+// Copyright © 2001 Telelogic AB. All rights reserved.
+// See DOORS manuals for copying conditions.
+// Copy this file to a different location before modifying it.
+
+/*
+  Export open module or recursively all modules in a folder to DoorScopeETL using IPC
+  Copyright © 2005-2011 by Rochus Keller, rochus.keller@doorscope.ch
+  See www.doorscope.ch for copying conditions.
+*/
+
+/*	Modification history:
+
+	Ver:  Date:      Who:     Description:
+	0     2.8.09     Rochus   Migration of exportCurModToDs.dxl to IPC Protocol
+	1     7.8.09     Rochus   Change of protocol, use BAR as field separator
+	2     26.12.11   Rochus   Avoid strings as far as possible due to bad DXL memory architecture
+*/
+// wmipicmp.dll
+
+int DoorScopeEtlPort = 5093
+
+pragma runLim,0
+
+string CmdOpenStream = "0" 
+string CmdCloseStream = "1"
+string CmdStringVal = "2"
+string CmdStringValName = "3"
+string CmdIntVal = "4"
+string CmdIntValName = "5" 
+string CmdBoolVal = "6"
+string CmdBoolValName = "7"
+string CmdCharVal = "8"
+string CmdCharValName = "9"
+string CmdRealVal = "10"
+string CmdRealValName = "11"
+string CmdDateVal = "12"
+string CmdDateValName = "13"
+string CmdLoadImg = "14"
+string CmdLoadImgName = "15"
+string CmdStartFrame = "16" 
+string CmdStartFrameName = "17"
+string CmdEndFrame = "18"
+string CmdStartEmbed = "19" 
+string CmdEndEmbed = "20"
+string CmdEndEmbedName = "21"
+
+IPC g_chan = client( DoorScopeEtlPort, "localhost" )
+if ( g_chan == null )
+{
+	ack "Cannot connect to DoorScopeEtl"
+	halt
+}
+
+Skip g_toClose = create
+Buffer g_str = create
+
+
+void sendString( string str )
+{
+	g_str = utf8( str ) // send scheint alles in UTF-8 umzuwandeln, was nirgends dokumentiert ist
+	int len = length( g_str )
+	if( len > 0 )
+	{
+		send( g_chan, len "" ) 
+		send( g_chan, "|" ) 
+		g_str = str
+		g_str += "|"
+		send( g_chan, tempStringOf( g_str ) ) 
+	}
+	else
+	{
+		send( g_chan, "0||" ) 
+	}
+}
+
+void sendBuffer( Buffer str )
+{
+	g_str = utf8( tempStringOf( str ) ) // send scheint alles in UTF-8 umzuwandeln, was nirgends dokumentiert ist
+	int len = length( g_str ) 
+	if( len > 0 )
+	{
+		send( g_chan, len "" ) 
+		send( g_chan, "|" ) 
+		str += "|"
+		send( g_chan, tempStringOf( str ) ) 
+	}
+	else
+	{
+		send( g_chan, "0||" ) 
+	}
+}
+
+void sendDateSlot( string name, Date value )
+{
+	if ( null(value) )
+		return
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdDateValName "|" )
+		sendString( stringOf(value,"yyyy-MM-dd" ) )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdDateVal "|" )
+		sendString( stringOf(value,"yyyy-MM-dd" ) )
+	}			
+}
+
+void sendIntSlot( string name, int value )
+{
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdIntValName "|" )
+		send( g_chan, value "" )
+		send( g_chan, "|" )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdIntVal "|" )
+		send( g_chan, value "" )
+		send( g_chan, "|" )
+	}			
+}
+
+void sendBoolSlot( string name, bool value )
+{
+	int b = 0
+	if ( value )
+		b = 1
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdBoolValName "|" b "|" )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdBoolVal "|" b "|" )
+	}			
+}
+
+void sendRealSlot( string name, real value )
+{
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdRealValName "|" )
+		send( g_chan, value "" )
+		send( g_chan, "|" )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdRealVal "|" )
+		send( g_chan, value "" )
+		send( g_chan, "|" )
+	}			
+}
+
+
+void sendStringSlot( string name, string value )
+{
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdStringValName "|" )
+		sendString( value )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdStringVal "|" )
+		sendString( value )
+	}			
+}
+
+void sendBufferSlot( string name, Buffer value )
+{
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdStringValName "|" )
+		sendBuffer( value )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdStringVal "|" )
+		sendBuffer( value )
+	}			
+}
+
+void sendCharSlot( string name, char value )
+{
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdCharValName "|" )
+		send( g_chan, value "" )
+		send( g_chan, "|" )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdCharVal "|" )
+		send( g_chan, value "" )
+		send( g_chan, "|" )
+	}			
+}
+
+void sendStartFrame( string name )
+{
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdStartFrameName "|" )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdStartFrame "|" )
+	}			
+}
+
+void sendEndFrame()
+{
+		send( g_chan, CmdEndFrame "|" )
+}
+
+void sendStartEmbed()
+{
+		send( g_chan, CmdStartEmbed "|" )
+}
+
+void sendEndEmbed( string name )
+{
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdEndEmbedName "|" )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdEndEmbed "|" )
+	}			
+}
+
+void sendLoadImg( string name, string path, bool deleteAfter )
+{
+	int b = 0
+	if ( deleteAfter )
+		b = 1
+	if ( length( name ) > 0 )
+	{
+		send( g_chan, CmdLoadImgName "|" )
+		sendString( path )
+		send( g_chan, b "|" )
+		sendString( name )
+	}
+	else
+	{
+		send( g_chan, CmdLoadImg "|" )
+		sendString( path )
+		send( g_chan, b "|" )
+	}			
+}
+
+void sendOpenStream( string name )
+{
+		send( g_chan, CmdOpenStream "|" )
+		sendString( name )
+}
+
+void sendCloseStream()
+{
+		send( g_chan, CmdCloseStream "|" )
+}
+
+bool probeRichText( Buffer str )
+{
+	bool hasRt = false
+	RichText rt
+	RichTextParagraph rp
+	for rp in tempStringOf( str ) do 
+	{
+		for rt in rp do
+		{
+			hasRt = hasRt || rt.bold || rt.italic || rt.strikethru || rt.subscript || rt.underline 
+			hasRt = hasRt || rt.isOle || rt.isUrl || rt.charset != charsetAnsi
+			// DOORS-BUG: rt.isBullet ist immer true und rt.bulletStyle nie 0 bzw. ist 66851848
+			// print rt.text " " rt.bulletStyle "\n"
+		}
+		hasRt = hasRt || rp.isBullet
+		hasRt = hasRt || ( rp.indentLevel > 0 )
+	}
+	return hasRt
+}
+
+void writeRichTextSlot( string name, Buffer value )
+{
+	RichText rt 
+	RichTextParagraph rp
+	
+	sendStartEmbed()
+	
+	for rp in tempStringOf( value ) do
+	{
+		sendStartFrame( "par" )
+		
+		if ( rp.indentLevel > 0 )
+		{
+			sendIntSlot( "il", rp.indentLevel ) // in Twips bzw. x*360
+		}
+		
+		if ( rp.isBullet )
+		{
+			sendBoolSlot( "bu", rp.isBullet ) 
+			sendIntSlot( "bs", rp.bulletStyle )
+		}
+		
+		for rt in rp do 
+		{
+			sendStartFrame( "rt" )
+			if ( rt.isOle )
+			{
+				EmbeddedOleObject ole = rt.getEmbeddedOle
+				string path = tempFileName()
+				exportPicture( ole, path, formatPNG )
+				sendLoadImg( "ole", path, true )
+				int w, h
+				getOleWidthHeight( ole, w, h )
+				sendRealSlot( "~width", realOf( w ) / 10.0 ) // Einheit Points ?
+				sendRealSlot( "~height", realOf( h ) / 10.0 ) // Einheit Points ?
+			}
+			else if ( rt.isUrl )
+			{
+				sendStringSlot( "url", rt.text )
+			}
+			else
+			{
+				if ( rt.italic )
+				{
+					sendCharSlot( "", 'i' )
+				}
+				if ( rt.bold )
+				{
+					sendCharSlot( "", 'b' )
+				}
+				if ( rt.underline )
+				{
+					sendCharSlot( "", 'u' )
+				}
+				if ( rt.strikethru )
+				{
+					sendCharSlot( "", 'k' )
+				}
+				if ( rt.superscript )
+				{
+					sendCharSlot( "", 'p' )
+				}
+				if ( rt.subscript )
+				{
+					sendCharSlot( "", 's' )
+				}
+				if ( rt.charset == charsetAnsi )
+				{
+				}else if ( rt.charset == charsetSymbol )
+				{
+					sendCharSlot( "", 'y' )
+				}else if ( rt.charset == charsetGreek )
+				{
+					sendCharSlot( "", 'g' )
+				}else 
+				{
+					sendCharSlot( "", '?' )
+				}
+				
+				sendStringSlot( "", rt.text )
+	
+			}
+			sendEndFrame() // rt
+		} 	
+		sendEndFrame() // par
+	}
+	
+	sendEndEmbed( name )
+}
+
+
+void writeModAttr( AttrDef ad, Module m )
+{
+	// Stand 21.12.11
+	int intVal
+	real realVal
+	Date dateVal
+	string strVal
+	
+	if ( ! canRead( m.(ad.name) ) )
+		return
+	//if ( null( m.(ad.name) ) )
+	//	return
+		// DOORS-BUG: null ist in den meisten Fällen wirkungslos, d.h. leere Strings kommen durch
+	
+	AttrType at = ad.type
+	if ( at.type == attrInteger )
+	{
+		intVal = m.(ad.name)
+		sendIntSlot( ad.name, intVal )
+	}
+	else if ( at.type == attrReal )
+	{
+		realVal = m.(ad.name)
+		sendRealSlot( ad.name, realVal )
+	}else if ( at.type == attrDate )
+	{
+		dateVal = m.(ad.name)
+		sendDateSlot( ad.name, dateVal )
+	}
+	else if ( at.type == attrText || at.type == attrString )
+	{
+		// Im Prinzip kann jedes Textfeld Richtext enthalten.
+		// Man kann diesen aber nur editieren, wenn das Feld in einer Spalte angezeigt wird.
+		// In der Properties-Box wird RT angezeigt, und es gibt RT-Features im Popup-Menu
+		// Hier wird als Konvention festgelegt, dass folgende Attrubute
+		// keinen RT enthalten. Bei den übrigen wird explizit auf RT geprüft
+		
+		Buffer rt = create
+		if ( ad.name == "Object Heading" || ad.name == "Object Identifier" || ad.name == "Object Number" || 
+			ad.name == "Created By" || ad.name == "Last Modified By" || ad.name == "Name" || 
+			ad.name == "Prefix" )
+		{
+			rt = m.(ad.name)
+			sendBufferSlot( ad.name, rt )
+		}else
+		{
+			rt = richTextWithOle( m.(ad.name) )
+			if ( probeRichText( rt ) )
+				writeRichTextSlot( ad.name, rt )
+			else
+			{
+				rt = m.(ad.name)
+				sendBufferSlot( ad.name, rt )
+			}
+		}
+		delete(rt)
+	}
+	else if ( at.type == attrUsername )
+	{
+		strVal = m.(ad.name)
+		sendStringSlot( ad.name, strVal )
+	}
+	else if ( at.type == attrEnumeration )
+	{
+		strVal = m.(ad.name)
+		sendStringSlot( ad.name, strVal )
+	}
+}
+
+void writeObjAttr( AttrDef ad, Object m )
+{
+	// Kopie von writeModAttr Stand 21.12.11
+	int intVal
+	real realVal
+	Date dateVal
+	string strVal
+	
+	if ( ! canRead( m.(ad.name) ) )
+		return
+	//if ( null( m.(ad.name) ) )
+	//	return
+		// DOORS-BUG: null ist in den meisten Fällen wirkungslos, d.h. leere Strings kommen durch
+	
+	AttrType at = ad.type
+	if ( at.type == attrInteger )
+	{
+		intVal = m.(ad.name)
+		sendIntSlot( ad.name, intVal )
+	}
+	else if ( at.type == attrReal )
+	{
+		realVal = m.(ad.name)
+		sendRealSlot( ad.name, realVal )
+	}else if ( at.type == attrDate )
+	{
+		dateVal = m.(ad.name)
+		sendDateSlot( ad.name, dateVal )
+	}
+	else if ( at.type == attrText || at.type == attrString )
+	{
+		// Im Prinzip kann jedes Textfeld Richtext enthalten.
+		// Man kann diesen aber nur editieren, wenn das Feld in einer Spalte angezeigt wird.
+		// In der Properties-Box wird RT angezeigt, und es gibt RT-Features im Popup-Menu
+		// Hier wird als Konvention festgelegt, dass folgende Attrubute
+		// keinen RT enthalten. Bei den übrigen wird explizit auf RT geprüft
+		
+		Buffer rt = create
+		if ( ad.name == "Object Heading" || ad.name == "Object Identifier" || ad.name == "Object Number" || 
+			ad.name == "Created By" || ad.name == "Last Modified By" || ad.name == "Name" || 
+			ad.name == "Prefix" )
+		{
+			rt = m.(ad.name)
+			sendBufferSlot( ad.name, rt )
+		}else
+		{
+			rt = richTextWithOle( m.(ad.name) )
+			if ( probeRichText( rt ) )
+				writeRichTextSlot( ad.name, rt )
+			else
+			{
+				rt = m.(ad.name)
+				sendBufferSlot( ad.name, rt )
+			}
+		}
+		delete(rt)
+	}
+	else if ( at.type == attrUsername )
+	{
+		strVal = m.(ad.name)
+		sendStringSlot( ad.name, strVal )
+	}
+	else if ( at.type == attrEnumeration )
+	{
+		strVal = m.(ad.name)
+		sendStringSlot( ad.name, strVal )
+	}
+}
+
+void writeLinkAttr( AttrDef ad, Link m )
+{
+	// Kopie von writeModAttr Stand 21.12.11
+	int intVal
+	real realVal
+	Date dateVal
+	string strVal
+	
+	if ( ! canRead( m.(ad.name) ) )
+		return
+	//if ( null( m.(ad.name) ) )
+	//	return
+		// DOORS-BUG: null ist in den meisten Fällen wirkungslos, d.h. leere Strings kommen durch
+	
+	AttrType at = ad.type
+	if ( at.type == attrInteger )
+	{
+		intVal = m.(ad.name)
+		sendIntSlot( ad.name, intVal )
+	}
+	else if ( at.type == attrReal )
+	{
+		realVal = m.(ad.name)
+		sendRealSlot( ad.name, realVal )
+	}else if ( at.type == attrDate )
+	{
+		dateVal = m.(ad.name)
+		sendDateSlot( ad.name, dateVal )
+	}
+	else if ( at.type == attrText || at.type == attrString )
+	{
+		// Im Prinzip kann jedes Textfeld Richtext enthalten.
+		// Man kann diesen aber nur editieren, wenn das Feld in einer Spalte angezeigt wird.
+		// In der Properties-Box wird RT angezeigt, und es gibt RT-Features im Popup-Menu
+		// Hier wird als Konvention festgelegt, dass folgende Attrubute
+		// keinen RT enthalten. Bei den übrigen wird explizit auf RT geprüft
+		
+		Buffer rt = create
+		if ( ad.name == "Object Heading" || ad.name == "Object Identifier" || ad.name == "Object Number" || 
+			ad.name == "Created By" || ad.name == "Last Modified By" || ad.name == "Name" || 
+			ad.name == "Prefix" )
+		{
+			rt = m.(ad.name)
+			sendBufferSlot( ad.name, rt )
+		}else
+		{
+			rt = richTextWithOle( m.(ad.name) )
+			if ( probeRichText( rt ) )
+				writeRichTextSlot( ad.name, rt )
+			else
+			{
+				rt = m.(ad.name)
+				sendBufferSlot( ad.name, rt )
+			}
+		}
+		delete(rt)
+	}
+	else if ( at.type == attrUsername )
+	{
+		strVal = m.(ad.name)
+		sendStringSlot( ad.name, strVal )
+	}
+	else if ( at.type == attrEnumeration )
+	{
+		strVal = m.(ad.name)
+		sendStringSlot( ad.name, strVal )
+	}
+}
+
+void stripRichText( Buffer str )
+{
+	RichText rt
+	g_str = ""
+	for rt in tempStringOf(str) do 
+	{
+		g_str += rt.text
+	}
+	str = stringOf(g_str)
+}
+
+void writeHistory( History h )
+{
+    HistoryType ht = h.type 
+    
+	sendStartFrame( "hist" )
+	
+	sendStringSlot( "~author", h.author )
+	sendDateSlot( "~date", h.date )
+	sendStringSlot( "~type", stringOf(ht) )
+	sendIntSlot( "~session", h.sessionNo )
+	
+    if (ht == createType ||
+        ht == modifyType ||
+        ht == deleteType)  
+    { // attribute type
+		sendStringSlot( "~typeName", h.typeName )
+    } else if (ht == createAttr ||
+               ht == modifyAttr ||
+               ht == deleteAttr)  
+    {  
+      // attribute definition
+			sendStringSlot( "~attrName", h.attrName )
+    } else if (ht == createObject ||
+               ht == clipCopyObject  ||
+               ht == clipCutObject ||
+               ht == clipMoveObject ||
+               ht == modifyObject ||
+               ht == deleteObject ||
+               ht == unDeleteObject ||
+               ht == purgeObject ) 
+    { // object
+        sendIntSlot( "~absNo", h.absNo ) // absNo==0...Modul
+        if (ht==modifyObject) 
+        { 
+        	// means an attribute has changed 
+ 	    sendStringSlot( "~attrName", h.attrName )
+ 	    Buffer rt = create
+            rt = h.oldValue
+            if ( probeRichText( rt ) )
+            	writeRichTextSlot( "~oldValue", rt )
+            else
+            {
+            	stripRichText( rt )
+		sendBufferSlot( "~oldValue", rt )
+	    }
+            rt = h.newValue
+            if ( probeRichText( rt ) )
+            	writeRichTextSlot( "~newValue", rt )
+            else
+            {
+            	stripRichText( rt )
+		sendBufferSlot( "~newValue", rt )
+	    }
+	    delete(rt)
+        }
+    }else if ( ht == createLink ||
+    			ht == modifyLink ||
+    			ht == deleteLink )
+    {
+        sendIntSlot( "~absNo", h.absNo ) 
+        sendIntSlot( "~targetAbsNo", h.targetAbsNo ) // undokumentiertes Feature
+    
+    }
+	// TODO weitere Attribute empirisch ermitteln, da lausig dokumentiert
+	sendEndFrame() // hist
+}
+
+void exportTable( Object o, Module m )
+{
+	AttrDef ad 
+	Object ro, co
+	
+	sendStartFrame( "tbl" )
+
+	for ad in m do 
+	{
+		if ( ad.object && !ad.hidden )
+			writeObjAttr( ad, o )
+	}
+	
+	for ro in table(o) do
+	{
+		sendStartFrame( "row" )
+		
+		for ad in m do 
+		{
+			if ( ad.object && !ad.hidden )
+				writeObjAttr( ad, ro )
+		}
+
+		for co in row(ro) do 
+		{
+			sendStartFrame( "cell" )
+			
+			for ad in m do 
+			{
+				if ( ad.object && !ad.hidden )
+					writeObjAttr( ad, co )
+			}
+			// TODO getCellAlignment etc.
+			sendEndFrame() // cell
+		} 
+		
+		sendEndFrame() // row
+	}
+
+	sendEndFrame() // tbl
+}
+
+void exportPicture( Object o, Module m )
+{
+	AttrDef ad 
+	string path = tempFileName()
+
+	sendStartFrame( "pic" )
+		
+	for ad in m do 
+	{
+		if ( ad.object && !ad.hidden )
+			writeObjAttr( ad, o )
+	}
+	exportPicture( o, path, formatPNG )
+	sendLoadImg( "", path, true )
+	
+	int w, h
+	getPictWidthHeight( o, w, h )
+	sendRealSlot( "~width", realOf( w ) / 10.0 ) // Einheit Points
+	sendRealSlot( "~height", realOf( h ) / 10.0 ) // Einheit Points
+	
+	sendEndFrame()
+}
+
+void exportObject( Object o, Module m )
+{
+	AttrDef ad 
+	Object sub
+
+	sendStartFrame( "obj" )
+
+	sendStringSlot( "~number", number(o) )
+	sendIntSlot( "~level", level(o) )
+	if ( isDeleted(o) )
+		sendBoolSlot( "~deleted", true )
+	sendBoolSlot( "~outline", isOutline(o) )
+	for ad in m do 
+	{
+		if ( ad.object && !ad.hidden )
+			writeObjAttr( ad, o )
+	}
+	
+	for sub in o do 
+	{
+		bool pic = false
+		if ( canRead( sub."Picture" ) )
+			pic = sub."Picture"
+		if ( pic )
+		{
+			exportPicture( sub, m )
+		}
+		else if ( table( sub ) ) 
+		{
+			exportTable( sub, m )
+		}
+		else
+		{
+			exportObject( sub, m )
+		}
+	}
+	Link l 
+	Module lm
+	for l in ( o ) -> "*" do 
+	{
+		sendStartFrame( "lnk" )
+		
+		lm = module(l)
+		sendStringSlot( "~linkModuleID", uniqueID( module (fullName(lm) "") ) ) // ID des Link Moduls
+		sendStringSlot( "~linkModuleName", name(lm) ) 
+		sendIntSlot( "~targetObjAbsNo", targetAbsNo(Link l) )	
+		
+		ModName_ tmn = target(l)
+		bool toClose = !open( tmn )
+		sendStringSlot( "~targetModName", fullName(tmn) ) 
+		sendStringSlot( "~targetModID", uniqueID(tmn) ) 
+		
+		Module tm = load( moduleVersion( tmn ), false )
+		if ( toClose )
+			put( g_toClose, tm, tm )
+		sendStringSlot( "~targetModVersion", version(tm) )
+		Date dt = tm."Last Modified On"
+		sendDateSlot( "~targetModLastModified", dt )
+		sendBoolSlot( "~isTargetModBaseline", isBaseline(tm) )
+		
+		Object t = target(l)
+		if ( !null(t) )
+		{
+			sendStartFrame( "tobj" )
+			sendStringSlot( "~number", number(t) )
+			sendIntSlot( "~level", level(t) )
+			for ad in tm do 
+			{
+				if ( ad.object && !ad.hidden )
+					writeObjAttr( ad, t )
+			}
+			sendEndFrame() // tobj
+		}
+		
+		for ad in lm do 
+		{
+			if ( ad.object && !ad.hidden )
+				writeLinkAttr( ad, l )
+		}
+
+		sendEndFrame() // lnk
+	} 
+	// Zuerst müssen mit folgendem Trick alle Source Module geladen werden
+	ModName_ srcModRef 
+	for srcModRef in o<-"*" do 
+	{
+		bool toClose = !open(srcModRef)
+		Module sm = load( moduleVersion( srcModRef ), false )
+		if (toClose)
+			put( g_toClose, sm, sm )
+	}
+	for l in ( o ) <- "*" do 
+	{
+		sendStartFrame( "lin" )
+		
+		lm = module(l)
+		sendStringSlot( "~linkModuleID", uniqueID( module (fullName(lm) "") ) ) // ID des Link Moduls
+		sendStringSlot( "~linkModuleName", name(lm) ) 
+		sendIntSlot( "~sourceObjAbsNo", sourceAbsNo(Link l) )	
+		
+		ModName_ smn = source(l)
+		bool toClose = !open( smn )
+		sendStringSlot( "~sourceModName", fullName(smn) ) 
+		sendStringSlot( "~sourceModID", uniqueID(smn) ) 
+		
+		Module sm = load( moduleVersion( smn ), false )
+		if ( toClose )
+			put( g_toClose, sm, sm )
+		sendStringSlot( "~sourceModVersion", version(sm) )
+		Date dt = sm."Last Modified On"
+		sendDateSlot( "~sourceModLastModified", dt )
+		sendBoolSlot( "~isSourceModBaseline", isBaseline(sm) )
+								
+		Object s = source(l)
+		if ( !null(s) )
+		{
+			sendStartFrame( "sobj" )
+			sendStringSlot( "~number", number(s) )
+			sendIntSlot( "~level", level(s) )
+			for ad in sm do 
+			{
+				if ( ad.object && !ad.hidden )
+					writeObjAttr( ad, s )
+			}
+			sendEndFrame() // sobj
+		}
+		
+		for ad in lm do 
+		{
+			if ( ad.object && !ad.hidden )
+				writeLinkAttr( ad, l )
+		}
+
+		sendEndFrame() // lin
+	} 
+	
+	sendEndFrame() // obj
+}
+
+void closeAllUnusedModules()
+{
+	Module m
+	for m in g_toClose do
+	{
+		delete( g_toClose, m )
+		close( m )
+	}
+}
+
+void exportModule( string moduleName )
+{
+	// Next big thing vorbereitet: Aufruf dieser und aller obigen Funtionen in eval_()
+	// um den String-Table nach jedem Modul wieder zu löschen.
+	
+	ModName_ mn = module( moduleName )
+	bool toClose = !open( mn )
+	Module m = load( moduleVersion( mn ), false )
+	if (toClose)
+		put( g_toClose, m, m )
+
+	sendOpenStream( name( m ) " " version( m ) )
+	
+	AttrDef ad 
+	Object o
+	Baseline bl
+	History hr
+
+	sendStringSlot( "", "DoorScopeExport" )
+	sendStringSlot( "", "0.3")
+	sendDateSlot( "", dateAndTime(today) )
+
+	sendStartFrame( "mod" )
+	
+	sendStringSlot( "~moduleID", uniqueID( module ( moduleName ) ) )
+	sendStringSlot( "~modulePath", path(m) )
+	sendStringSlot( "~moduleVersion", version(m) )
+	sendStringSlot( "~moduleDescription", description(m) )
+	sendStringSlot( "~moduleName", name(m) )
+	sendStringSlot( "~moduleFullName", moduleName )
+	sendStringSlot( "~moduleType", type(m) )
+	sendBoolSlot( "~isBaseline", isBaseline(m) )
+	
+	bl = getMostRecentBaseline( m )
+	if ( !null(bl) )
+	{
+		sendIntSlot( "~baselineMajor", major(bl) )
+		sendIntSlot( "~baselineMinor", minor(bl) )
+		sendStringSlot( "~baselineSuffix", suffix(bl) )
+		sendStringSlot( "~baselineAnnotation", annotation(bl) )
+		sendDateSlot( "~baselineDate", dateOf(bl) )
+	}
+	
+	for ad in m do 
+	{
+		if ( ad.module && !ad.hidden )
+			writeModAttr( ad, m )
+	} 
+	
+	for o in top(m) do
+	{
+		bool pic = o."Picture"
+		if ( pic )
+		{
+			exportPicture( o, m )
+		}
+		else if ( table( o ) ) 
+		{
+			exportTable( o, m )
+		}
+		else
+		{
+			exportObject( o, m )
+		}
+	}
+	for hr in m do
+	{
+		writeHistory( hr )
+	}
+	
+	sendEndFrame() // mod
+	
+	sendCloseStream()
+	
+	closeAllUnusedModules()
+}
+
+void exportFolder( Folder f)
+{
+	Item i 
+	for i in f do
+	{
+		string t = type( i )
+		if ( t == "Folder" || t == "Project" )
+		{
+			print "Entering folder " name( i ) "\n"
+			exportFolder( folder( i ) )
+		}
+		else if ( t == "Formal" )
+		{
+			print "Begin module " name( i ) "\n"
+			exportModule( fullName( i ) )
+			print "End module " name( i ) "\n"
+		}
+	} 
+}
+
+// Main 
+if ( (current Module) != null )
+{
+	print "Export module\n"
+	exportModule( fullName( current Module ) )
+	print "Done\n"
+}
+else if ( ( current Folder) != null )
+{
+		print "Recursive export of folder " name( current Folder ) "\n"
+		exportFolder( current Folder )
+		print "Done\n"
+}
+else
+	ack "Nothing to export\n"
+
+closeAllUnusedModules()
+delete( g_str )
+delete( g_toClose )
