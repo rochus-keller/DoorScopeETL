@@ -3,7 +3,7 @@
 DoorScopeEtl is an application which is run on the machine where the DOORS client runs. The application is responsible of receiving the data sent from within the DOORS client by the script exportToDoorScopeEtl2.dxl.
 
 ## Download and Installation
-DoorScopeEtl is deployed as a compressed single-file executable. See http://doorscope.ch/. The executable is built from the source code accessible here. Of course you can build the executable yourself if you want (see below for instructions). Since DoorScopeEtl is a single executable, it can just be downloaded and unpacked. No installation is necessary. You therefore need no special privileges to run DoorScopeEtl on your machine. 
+DoorScopeEtl is deployed as a compressed single-file executable. See https://github.com/DoorScope#downloads. The executable is built from the source code accessible here. Of course you can build the executable yourself if you want (see below for instructions). Since DoorScopeEtl is a single executable, it can just be downloaded and unpacked. No installation is necessary. You therefore need no special privileges to run DoorScopeEtl on your machine. 
 
 ## How to Build DoorScopeEtl
 
@@ -14,7 +14,7 @@ You can download the Qt 4.4.3 source tree from here: http://download.qt.io/archi
 
 The source tree also includes documentation and build instructions.
 
-If you intend to do static builds on Windows without dependency on C++ runtime libs and manifest complications, follow the recommendations in this post: http://www.archivum.info/qt-interest@trolltech.com/2007-02/00039/Fed-up-with-Windows-runtime-DLLs-and-manifest-files-Here's-a-solution.html
+If you intend to do static builds on Windows without dependency on C++ runtime libs and manifest complications, follow the recommendations in this post: http://www.archivum.info/qt-interest@trolltech.com/2007-02/00039/Fed-up-with-Windows-runtime-DLLs-and-manifest-files-Here's-a-solution.html (link is dead)
 
 Here is the summary on how to do implement Qt Win32 static builds:
 
@@ -34,6 +34,5 @@ Follow these steps if you inted to build DoorScopeEtl yourself (don't forget to 
 Alternatively you can open DoorScopeEtl.pro using QtCreator and build it there.
 
 ## Support
-If you need support or would like to post issues or feature requests please use our forum: http://doorscope.ch/forum/
-
+If you need support or would like to post issues or feature requests please post an issue on GitHub.
 
